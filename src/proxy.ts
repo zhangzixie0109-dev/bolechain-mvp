@@ -1,15 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
-export async function middleware(request: NextRequest) {
-  // Read env vars - on Vercel Edge Runtime, NEXT_PUBLIC_ vars need to be
-  // inlined at build time. We use a fallback approach.
+export async function proxy(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   // If Supabase env vars are not available, use cookie-based check as fallback
   if (!supabaseUrl || !supabaseAnonKey) {
-    // Fallback: check if any supabase auth cookie exists
     const hasAuthCookie = request.cookies
       .getAll()
       .some((c) => c.name.startsWith("sb-") && c.name.endsWith("-auth-token"));
@@ -22,7 +19,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Full Supabase session refresh when env vars are available
+  // Full Supabase session refresh
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
