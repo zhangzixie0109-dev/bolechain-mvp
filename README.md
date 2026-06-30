@@ -2,38 +2,31 @@
 
 华人学生跨境升学（港澳+新加坡）AI规划 + 区块链材料认证演示产品。
 
+**纯静态演示版本** — 所有交互在浏览器端完成，无需任何后端服务或环境变量。
+
 ## 技术栈
 
-- **Framework**: Next.js 15 (App Router) + TypeScript
+- **Framework**: Next.js 16 (App Router, Static Export) + TypeScript
 - **Styling**: Tailwind CSS v4 + shadcn/ui
-- **Auth & DB**: Supabase (Auth + PostgreSQL + Storage)
+- **Auth**: localStorage 模拟（演示用）
+- **Data**: 硬编码 mock 数据 + localStorage 持久化
 - **Package Manager**: Bun
-- **Deployment**: Vercel
+- **Deployment**: Vercel (Static)
 
 ## 快速开始
 
-### 1. 安装依赖
-
 ```bash
+# 安装依赖
 bun install
-```
 
-### 2. 配置环境变量
-
-复制 `.env.example` 为 `.env.local` 并填入你的 Supabase 凭证：
-
-```bash
-cp .env.example .env.local
-```
-
-### 3. 初始化数据库
-
-在 Supabase Dashboard 的 SQL Editor 中执行 `supabase/migrations/001_init_schema.sql`。
-
-### 4. 启动开发服务器
-
-```bash
+# 开发模式
 bun dev
+
+# 构建静态站点
+bun run build
+
+# 本地预览构建产物
+bunx serve out
 ```
 
 访问 http://localhost:3000
@@ -44,61 +37,57 @@ bun dev
 bolechain-mvp/
 ├── src/
 │   ├── app/
-│   │   ├── page.tsx              # Landing Page
-│   │   ├── layout.tsx            # Root Layout
+│   │   ├── page.tsx                    # Landing Page
+│   │   ├── layout.tsx                  # Root Layout
 │   │   ├── register/
-│   │   │   └── page.tsx          # 三角色注册页
-│   │   ├── dashboard/
-│   │   │   ├── layout.tsx        # Dashboard Layout (Sidebar)
-│   │   │   └── page.tsx          # Dashboard 主页
-│   │   └── auth/
-│   │       └── callback/
-│   │           └── route.ts      # Auth callback handler
+│   │   │   └── page.tsx                # 三角色登录页
+│   │   └── dashboard/
+│   │       ├── layout.tsx              # Dashboard Layout (Sidebar)
+│   │       ├── page.tsx                # Dashboard 主页
+│   │       ├── planning/
+│   │       │   └── page.tsx            # AI 升学规划（mock）
+│   │       ├── credentials/
+│   │       │   └── page.tsx            # 材料库（上传+区块链模拟）
+│   │       └── portfolio/
+│   │           └── page.tsx            # 求职档案（placeholder）
 │   ├── components/
-│   │   ├── ui/                   # shadcn/ui 组件
-│   │   ├── app-sidebar.tsx       # 侧边栏导航
-│   │   └── dashboard-header.tsx  # 顶部栏
-│   ├── hooks/
-│   │   └── use-mobile.ts        # 移动端检测
+│   │   ├── ui/                         # shadcn/ui 组件
+│   │   ├── app-sidebar.tsx             # 左侧导航
+│   │   └── dashboard-header.tsx        # 顶部栏
 │   ├── lib/
-│   │   ├── utils.ts             # 工具函数
-│   │   └── supabase/
-│   │       ├── client.ts        # 浏览器端 Supabase client
-│   │       └── server.ts        # 服务端 Supabase client
-│   └── middleware.ts            # Auth middleware (session refresh + route protection)
+│   │   ├── utils.ts                    # cn() 工具函数
+│   │   ├── auth.ts                     # localStorage Auth 工具
+│   │   └── mock-data.ts               # Mock 数据（schools, credentials, AI output）
+│   └── hooks/
+│       └── use-mobile.ts              # 移动端检测
 ├── supabase/
 │   └── migrations/
-│       └── 001_init_schema.sql  # Schema + RLS + Seed
-├── .env.example
-├── .env.local                   # (gitignored)
+│       └── 001_init_schema.sql        # 数据库 Schema（供后续接入）
+├── vercel.json
+├── next.config.ts                     # output: "export"
 └── package.json
 ```
 
-## 数据库表
+## 演示功能
 
-| 表名 | 说明 |
+| 功能 | 说明 |
 |------|------|
-| users | 用户扩展表（role, linked_student_id, invite_code） |
-| schools | 院校信息（含 DSE/ALevel 要求、面试形式） |
-| applications | 申请记录 |
-| credentials | 材料凭证（区块链认证） |
+| 三角色登录 | 选角色 + 输入邮箱即可进入（localStorage） |
+| AI 升学规划 | 点击按钮生成 mock 规划结果 |
+| 材料上传认证 | 模拟文件哈希计算 + 区块链锚定 |
+| 求职档案 | Placeholder，即将上线 |
+
+## 部署
+
+Vercel 自动检测 Next.js 静态导出，**无需配置任何环境变量**。
+
+```bash
+# 直接推送到 GitHub，Vercel 自动部署
+git push origin main
+```
 
 ## 角色说明
 
-- **Student**: 学生，可管理自己的材料和申请
-- **Parent**: 家长，通过邀请码绑定学生，只读查看
-- **Counselor**: 升学顾问，需机构码 `BOLE2026` 注册，可签发凭证
-
-## RLS 策略
-
-- Student: 只能读写自己的 credentials/applications
-- Parent: 通过 linked_student_id 只读对应 student 的数据
-- Counselor: 只能写 issuer_did=self 的 credentials
-
-## 部署到 Vercel
-
-```bash
-vercel
-```
-
-确保在 Vercel 项目设置中配置环境变量。
+- **Student**: 学生，可使用 AI 规划和材料上传
+- **Parent**: 家长，通过邀请码绑定学生
+- **Counselor**: 升学顾问，需机构码 `BOLE2026`

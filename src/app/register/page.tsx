@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { login, generateInviteCode, type Role } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,8 +10,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { GraduationCap, Users, Building2 } from "lucide-react";
-
-type Role = "student" | "parent" | "counselor";
 
 const COUNSELOR_CODE = "BOLE2026";
 
@@ -44,11 +42,9 @@ function RegisterContent() {
   const router = useRouter();
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [counselorCode, setCounselorCode] = useState("");
   const [inviteCode, setInviteCode] = useState("");
   const [loading, setLoading] = useState(false);
-  const [isLogin, setIsLogin] = useState(false);
 
   useEffect(() => {
     const role = searchParams.get("role") as Role | null;
@@ -64,12 +60,12 @@ function RegisterContent() {
       return;
     }
 
-    if (!email || !password) {
-      toast.error("请填写邮箱和密码");
+    if (!email) {
+      toast.error("请填写邮箱");
       return;
     }
 
-    if (selectedRole === "counselor" && !isLogin) {
+    if (selectedRole === "counselor") {
       if (counselorCode !== COUNSELOR_CODE) {
         toast.error("机构码错误，请联系管理员获取");
         return;
@@ -77,84 +73,27 @@ function RegisterContent() {
     }
 
     setLoading(true);
-    const supabase = createClient();
 
-    try {
-      if (isLogin) {
-        // Login flow
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
-        toast.success("登录成功！");
-        router.push("/dashboard");
-      } else {
-        // Register flow
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
-          },
-        });
-        if (error) throw error;
+    // Simulate a brief delay
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
-        if (data.user) {
-          // Generate invite code for students
-          const generatedInviteCode =
-            selectedRole === "student"
-              ? Math.random().toString(36).substring(2, 8).toUpperCase()
-              : null;
+    const generatedInviteCode = selectedRole === "student" ? generateInviteCode() : undefined;
 
-          // Insert user profile
-          const { error: profileError } = await supabase
-            .from("users")
-            .insert({
-              id: data.user.id,
-              role: selectedRole,
-              invite_code: generatedInviteCode,
-              linked_student_id:
-                selectedRole === "parent" && inviteCode
-                  ? inviteCode
-                  : null,
-            });
+    // Save to localStorage
+    login({
+      email,
+      role: selectedRole,
+      inviteCode: generatedInviteCode,
+      linkedStudentId: selectedRole === "parent" && inviteCode ? inviteCode : undefined,
+    });
 
-          if (profileError) {
-            console.error("Profile insert error:", profileError);
-          }
-
-          // If parent with invite code, link to student
-          if (selectedRole === "parent" && inviteCode) {
-            // Find student by invite code and link
-            const { data: studentData } = await supabase
-              .from("users")
-              .select("id")
-              .eq("invite_code", inviteCode)
-              .eq("role", "student")
-              .single();
-
-            if (studentData) {
-              await supabase
-                .from("users")
-                .update({ linked_student_id: studentData.id.toString() })
-                .eq("id", data.user.id);
-            }
-          }
-
-          toast.success("注册成功！");
-          if (generatedInviteCode) {
-            toast.info(`您的邀请码：${generatedInviteCode}（请发送给家长绑定）`);
-          }
-          router.push("/dashboard");
-        }
-      }
-    } catch (error: unknown) {
-      const errMsg = error instanceof Error ? error.message : "操作失败";
-      toast.error(errMsg);
-    } finally {
-      setLoading(false);
+    toast.success("登录成功！");
+    if (generatedInviteCode) {
+      toast.info(`您的邀请码：${generatedInviteCode}（请发送给家长绑定）`);
     }
+
+    setLoading(false);
+    router.push("/dashboard");
   };
 
   return (
@@ -163,55 +102,54 @@ function RegisterContent() {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-white mb-2">
-            {isLogin ? "登录 BoleChain" : "注册 BoleChain"}
+            进入 BoleChain
           </h1>
           <p className="text-blue-200">
-            {isLogin ? "欢迎回来" : "选择您的角色开始使用"}
+            选择您的角色开始使用
           </p>
         </div>
 
         {/* Role Selection */}
-        {!isLogin && (
-          <div className="grid grid-cols-3 gap-3 mb-6">
-            {(Object.entries(roleConfig) as [Role, typeof roleConfig.student][]).map(
-              ([role, config]) => {
-                const Icon = config.icon;
-                return (
-                  <button
-                    key={role}
-                    onClick={() => setSelectedRole(role)}
-                    className={`p-4 rounded-xl border-2 transition-all ${
-                      selectedRole === role
-                        ? "border-amber-400 bg-white/10 scale-105"
-                        : "border-white/20 bg-white/5 hover:border-white/40"
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          {(Object.entries(roleConfig) as [Role, typeof roleConfig.student][]).map(
+            ([role, config]) => {
+              const Icon = config.icon;
+              return (
+                <button
+                  key={role}
+                  onClick={() => setSelectedRole(role)}
+                  className={`p-4 rounded-xl border-2 transition-all ${
+                    selectedRole === role
+                      ? "border-amber-400 bg-white/10 scale-105"
+                      : "border-white/20 bg-white/5 hover:border-white/40"
+                  }`}
+                >
+                  <Icon
+                    className={`w-8 h-8 mx-auto mb-2 ${
+                      selectedRole === role ? "text-amber-400" : "text-white/70"
                     }`}
-                  >
-                    <Icon
-                      className={`w-8 h-8 mx-auto mb-2 ${
-                        selectedRole === role ? "text-amber-400" : "text-white/70"
-                      }`}
-                    />
-                    <p className="text-white text-sm font-medium">{config.title}</p>
-                    <p className="text-white/50 text-xs">{config.titleEn}</p>
-                  </button>
-                );
-              }
-            )}
-          </div>
-        )}
+                  />
+                  <p className="text-white text-sm font-medium">{config.title}</p>
+                  <p className="text-white/50 text-xs">{config.titleEn}</p>
+                </button>
+              );
+            }
+          )}
+        </div>
 
         {/* Form */}
         <Card className="bg-white/10 border-white/20 backdrop-blur">
           <CardHeader>
             <CardTitle className="text-white">
-              {isLogin ? "账号登录" : "创建账号"}
+              快速登录
             </CardTitle>
             <CardDescription className="text-blue-200">
-              {selectedRole && !isLogin && (
+              {selectedRole && (
                 <Badge variant="secondary" className="mt-1">
                   {roleConfig[selectedRole].title}
                 </Badge>
               )}
+              <span className="block mt-2 text-xs">演示版本：输入邮箱即可体验</span>
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -231,24 +169,8 @@ function RegisterContent() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password" className="text-white">
-                  密码
-                </Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="至少6位"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={6}
-                  className="bg-white/10 border-white/30 text-white placeholder:text-white/40"
-                />
-              </div>
-
               {/* Counselor code field */}
-              {selectedRole === "counselor" && !isLogin && (
+              {selectedRole === "counselor" && (
                 <div className="space-y-2">
                   <Label htmlFor="counselorCode" className="text-white">
                     机构码
@@ -266,7 +188,7 @@ function RegisterContent() {
               )}
 
               {/* Parent invite code field */}
-              {selectedRole === "parent" && !isLogin && (
+              {selectedRole === "parent" && (
                 <div className="space-y-2">
                   <Label htmlFor="inviteCode" className="text-white">
                     学生邀请码（可选）
@@ -280,28 +202,19 @@ function RegisterContent() {
                     className="bg-white/10 border-white/30 text-white placeholder:text-white/40"
                   />
                   <p className="text-xs text-blue-300">
-                    注册后也可以在设置中绑定
+                    登录后也可以在设置中绑定
                   </p>
                 </div>
               )}
 
               <Button
                 type="submit"
-                disabled={loading || (!isLogin && !selectedRole)}
+                disabled={loading || !selectedRole}
                 className="w-full bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold"
               >
-                {loading ? "处理中..." : isLogin ? "登录" : "注册"}
+                {loading ? "处理中..." : "进入系统"}
               </Button>
             </form>
-
-            <div className="mt-4 text-center">
-              <button
-                onClick={() => setIsLogin(!isLogin)}
-                className="text-blue-300 hover:text-white text-sm underline"
-              >
-                {isLogin ? "没有账号？去注册" : "已有账号？去登录"}
-              </button>
-            </div>
           </CardContent>
         </Card>
 
@@ -321,11 +234,13 @@ function RegisterContent() {
 
 export default function RegisterPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
-        <p className="text-white">加载中...</p>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
+          <p className="text-white">加载中...</p>
+        </div>
+      }
+    >
       <RegisterContent />
     </Suspense>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { getUser, logout } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { LogOut } from "lucide-react";
@@ -14,29 +14,16 @@ export function DashboardHeader() {
   const [email, setEmail] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchUser = async () => {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user) {
-        setEmail(user.email || null);
-        const { data } = await supabase
-          .from("users")
-          .select("role")
-          .eq("id", user.id)
-          .single();
-        if (data) setRole(data.role);
-      }
-    };
-    fetchUser();
+    const user = getUser();
+    if (user) {
+      setEmail(user.email);
+      setRole(user.role);
+    }
   }, []);
 
-  const handleLogout = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
+  const handleLogout = () => {
+    logout();
     router.push("/");
-    router.refresh();
   };
 
   const roleLabels: Record<string, string> = {
