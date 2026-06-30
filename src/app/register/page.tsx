@@ -13,27 +13,24 @@ import { GraduationCap, Users, Building2 } from "lucide-react";
 
 const COUNSELOR_CODE = "BOLE2026";
 
-const roleConfig = {
+const roleConfig: Record<Role, { icon: typeof GraduationCap; title: string; titleEn: string; description: string }> = {
   student: {
     icon: GraduationCap,
     title: "学生",
     titleEn: "Student",
     description: "申请港澳/新加坡院校",
-    color: "bg-blue-500",
   },
   parent: {
     icon: Users,
     title: "家长",
     titleEn: "Parent",
     description: "关注孩子升学进度",
-    color: "bg-green-500",
   },
   counselor: {
     icon: Building2,
     title: "升学顾问",
     titleEn: "Counselor",
     description: "管理学生材料认证",
-    color: "bg-amber-500",
   },
 };
 
@@ -65,11 +62,10 @@ function RegisterContent() {
       return;
     }
 
-    if (selectedRole === "counselor") {
-      if (counselorCode !== COUNSELOR_CODE) {
-        toast.error("机构码错误，请联系管理员获取");
-        return;
-      }
+    // Counselor code validation
+    if (selectedRole === "counselor" && counselorCode !== COUNSELOR_CODE) {
+      toast.error("机构码错误，请联系管理员获取");
+      return;
     }
 
     setLoading(true);
@@ -96,52 +92,61 @@ function RegisterContent() {
     router.push("/dashboard");
   };
 
+  // Dynamic page title based on selected role
+  const pageTitle = selectedRole
+    ? `${roleConfig[selectedRole].title}登录`
+    : "进入 BoleChain";
+
+  const pageSubtitle = selectedRole
+    ? roleConfig[selectedRole].description
+    : "选择您的角色开始使用";
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center p-4">
       <div className="w-full max-w-lg">
-        {/* Header */}
+        {/* Header - shows role-specific title */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-white mb-2">
-            进入 BoleChain
+            {pageTitle}
           </h1>
           <p className="text-blue-200">
-            选择您的角色开始使用
+            {pageSubtitle}
           </p>
         </div>
 
         {/* Role Selection */}
         <div className="grid grid-cols-3 gap-3 mb-6">
-          {(Object.entries(roleConfig) as [Role, typeof roleConfig.student][]).map(
-            ([role, config]) => {
-              const Icon = config.icon;
-              return (
-                <button
-                  key={role}
-                  onClick={() => setSelectedRole(role)}
-                  className={`p-4 rounded-xl border-2 transition-all ${
-                    selectedRole === role
-                      ? "border-amber-400 bg-white/10 scale-105"
-                      : "border-white/20 bg-white/5 hover:border-white/40"
+          {(Object.keys(roleConfig) as Role[]).map((role) => {
+            const config = roleConfig[role];
+            const Icon = config.icon;
+            return (
+              <button
+                key={role}
+                type="button"
+                onClick={() => setSelectedRole(role)}
+                className={`p-4 rounded-xl border-2 transition-all ${
+                  selectedRole === role
+                    ? "border-amber-400 bg-white/10 scale-105"
+                    : "border-white/20 bg-white/5 hover:border-white/40"
+                }`}
+              >
+                <Icon
+                  className={`w-8 h-8 mx-auto mb-2 ${
+                    selectedRole === role ? "text-amber-400" : "text-white/70"
                   }`}
-                >
-                  <Icon
-                    className={`w-8 h-8 mx-auto mb-2 ${
-                      selectedRole === role ? "text-amber-400" : "text-white/70"
-                    }`}
-                  />
-                  <p className="text-white text-sm font-medium">{config.title}</p>
-                  <p className="text-white/50 text-xs">{config.titleEn}</p>
-                </button>
-              );
-            }
-          )}
+                />
+                <p className="text-white text-sm font-medium">{config.title}</p>
+                <p className="text-white/50 text-xs">{config.titleEn}</p>
+              </button>
+            );
+          })}
         </div>
 
         {/* Form */}
         <Card className="bg-white/10 border-white/20 backdrop-blur">
           <CardHeader>
             <CardTitle className="text-white">
-              快速登录
+              {selectedRole ? `${roleConfig[selectedRole].title}快速登录` : "快速登录"}
             </CardTitle>
             <CardDescription className="text-blue-200">
               {selectedRole && (
@@ -169,7 +174,7 @@ function RegisterContent() {
                 />
               </div>
 
-              {/* Counselor code field */}
+              {/* Counselor code field - NOT using required attr, validation in JS */}
               {selectedRole === "counselor" && (
                 <div className="space-y-2">
                   <Label htmlFor="counselorCode" className="text-white">
@@ -178,12 +183,14 @@ function RegisterContent() {
                   <Input
                     id="counselorCode"
                     type="text"
-                    placeholder="请输入机构授权码"
+                    placeholder="请输入机构授权码（提示：BOLE2026）"
                     value={counselorCode}
                     onChange={(e) => setCounselorCode(e.target.value)}
-                    required
                     className="bg-white/10 border-white/30 text-white placeholder:text-white/40"
                   />
+                  <p className="text-xs text-amber-300/70">
+                    演示提示：机构码为 BOLE2026
+                  </p>
                 </div>
               )}
 
@@ -221,6 +228,7 @@ function RegisterContent() {
         {/* Back to home */}
         <div className="text-center mt-4">
           <button
+            type="button"
             onClick={() => router.push("/")}
             className="text-white/60 hover:text-white text-sm"
           >
