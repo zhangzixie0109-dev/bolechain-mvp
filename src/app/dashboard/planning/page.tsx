@@ -1,267 +1,255 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { getUser } from "@/lib/auth";
+import { getCredentials, type CredentialRecord, docTypeConfig } from "@/lib/mock-data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Brain, Plus, Trash2, Sparkles } from "lucide-react";
+import { Brain, Plus, Trash2, Sparkles, Package } from "lucide-react";
 
-const TARGET_SCHOOLS = [
-  "香港大学 (HKU)",
-  "香港中文大学 (CUHK)",
-  "香港科技大学 (HKUST)",
-  "香港理工大学 (PolyU)",
-  "香港城市大学 (CityU)",
-  "香港浸会大学 (HKBU)",
-  "岭南大学 (LU)",
-  "香港教育大学 (EdUHK)",
-  "香港都会大学 (HKMU)",
-  "新加坡国立大学 (NUS)",
-  "南洋理工大学 (NTU)",
-];
-
-interface SubjectScore {
-  subject: string;
-  score: string;
-}
-
-const mockThreeYearPlan = {
-  G9: {
-    title: "高一（G9）— 基础夯实期",
-    items: [
-      "选课建议：确保数学、英语、物理/化学为核心科目，选修经济学或商业",
-      "GPA 目标：保持 3.8+ / A 等级以上",
-      "语言准备：开始 IELTS/TOEFL 基础训练，目标词汇量 6000+",
-      "竞赛规划：报名 AMC 10（数学）、BPA（商业）或 FBLA 商赛",
-      "课外活动：加入学生会/辩论社，开始积累领导力经历",
-      "暑假任务：参加一个学术夏校（推荐港大/NUS 线上项目）",
-    ],
-  },
-  G10: {
-    title: "高二（G10）— 能力提升期",
-    items: [
-      "选课建议：增加 AP/IB HL 科目（推荐 AP Calculus + AP Economics）",
-      "标化考试：首次 IELTS 模考，目标 6.5+；SAT 开始备考",
-      "竞赛冲刺：AMC 12 + AIME 冲刺；参加 NUS 数学奥赛或 HKMO",
-      "科研/项目：启动一个小型研究项目或创业项目（与目标专业相关）",
-      "社区服务：累计 100+ 小时志愿服务",
-      "暑假任务：实习或深度学术项目（推荐与港校教授联系 research attachment）",
-      "推荐信：开始与 2-3 位老师建立深度关系",
-    ],
-  },
-  G11: {
-    title: "高三上（G11）— 申请准备期",
-    items: [
-      "标化成绩：IELTS 7.0+ / TOEFL 100+；SAT 1500+（如需）",
-      "文书撰写：9月开始个人陈述（PS）初稿，10月完成修改",
-      "推荐信：10月前确认推荐人并提供素材",
-      "材料认证：所有成绩单、获奖证书通过 BoleChain 上链认证",
-      "港大 Early Admission：11月提交（注意面试准备）",
-      "NUS/NTU 申请：12月-1月提交，准备 ABA 面试",
-      "面试训练：每周 1-2 次模拟面试（英文 + 粤语）",
-    ],
-  },
-  G12: {
-    title: "高三下（G12）— 冲刺决策期",
-    items: [
-      "跟进申请状态：1-3月等待 offer，及时补充材料",
-      "CUHK/HKUST 面试：2-3月集中面试季",
-      "Offer 对比决策：4月前确认 firm choice",
-      "签证与住宿：5月开始办理学生签证、申请宿舍",
-      "行前准备：6-7月参加 orientation、了解选课系统",
-      "BoleChain 档案：导出完整的可验证学术档案",
-    ],
-  },
-};
+interface SubjectScore { subject: string; score: string; }
+interface CompetitionEntry { name: string; level: string; year: string; }
+interface InternshipEntry { company: string; role: string; duration: string; }
+interface RecommendationEntry { name: string; identity: string; email: string; }
 
 export default function PlanningPage() {
-  const [grade, setGrade] = useState("");
+  const user = getUser();
+  const [credentials, setCredentials] = useState<CredentialRecord[]>([]);
   const [subjects, setSubjects] = useState<SubjectScore[]>([{ subject: "", score: "" }]);
-  const [selectedSchools, setSelectedSchools] = useState<string[]>([]);
+  const [languageScore, setLanguageScore] = useState("");
+  const [languageExtra, setLanguageExtra] = useState("");
+  // Optional sections
+  const [showCompetition, setShowCompetition] = useState(false);
+  const [showInternship, setShowInternship] = useState(false);
+  const [showRecommendation, setShowRecommendation] = useState(false);
+  const [showPS, setShowPS] = useState(false);
+  const [competitions, setCompetitions] = useState<CompetitionEntry[]>([{ name: "", level: "", year: "" }]);
+  const [internships, setInternships] = useState<InternshipEntry[]>([{ company: "", role: "", duration: "" }]);
+  const [recommendations, setRecommendations] = useState<RecommendationEntry[]>([{ name: "", identity: "", email: "" }]);
+  const [psTitle, setPsTitle] = useState("");
+  const [psKeywords, setPsKeywords] = useState("");
+  // Gaokao specific
+  const [gaokaoScores, setGaokaoScores] = useState({ chinese: "", math: "", english: "", comprehensive: "", total: "" });
+
   const [showResult, setShowResult] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const user = getUser();
-  const mockDid = `did:key:z6Mk${(user?.email || "demo").replace(/[^a-zA-Z0-9]/g, "").slice(0, 8)}...`;
+  useEffect(() => {
+    if (user) setCredentials(getCredentials().filter(c => c.student_email === user.email));
+  }, []);
 
-  const addSubject = () => {
-    setSubjects([...subjects, { subject: "", score: "" }]);
-  };
+  const curriculum = user?.curriculum || "other";
+  const degreeLevel = user?.degreeLevel || "undergrad";
+  const isGrad = degreeLevel === "grad" || degreeLevel === "phd";
 
-  const removeSubject = (index: number) => {
-    setSubjects(subjects.filter((_, i) => i !== index));
-  };
-
-  const updateSubject = (index: number, field: "subject" | "score", value: string) => {
-    const updated = [...subjects];
-    updated[index][field] = value;
-    setSubjects(updated);
-  };
-
-  const toggleSchool = (school: string) => {
-    setSelectedSchools((prev) =>
-      prev.includes(school) ? prev.filter((s) => s !== school) : [...prev, school]
-    );
-  };
+  const addSubject = () => setSubjects([...subjects, { subject: "", score: "" }]);
+  const removeSubject = (i: number) => setSubjects(subjects.filter((_, idx) => idx !== i));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!grade) return;
     setLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    await new Promise(r => setTimeout(r, 2000));
     setShowResult(true);
     setLoading(false);
   };
 
+  // Generate mock plan based on degree level
+  const generatePlan = () => {
+    const credNames = credentials.map(c => c.file_name);
+    const credRef = credNames.length > 0 ? `基于你已上链的${credNames.length}份材料（${credNames.slice(0, 3).join("、")}${credNames.length > 3 ? "等" : ""}），` : "";
+
+    if (isGrad) {
+      return [
+        { title: "大一/大二 — 基础积累期", items: [`${credRef}建议保持GPA 3.5+，重点关注核心专业课`, "选修1-2门研究方法论课程", "加入教授实验室，开始接触科研", "参加学术研讨会，建立学术网络", "暑假申请 Research Attachment（港大/NUS）"] },
+        { title: "大三 — 科研深入期", items: ["GPA冲刺3.7+，核心课程争取A/A+", "确定研究方向，争取发表1篇会议论文", "开始联系目标导师（建议9月前发第一封邮件）", "准备GRE/GMAT（如需）", "实习：争取一段与研究方向相关的实习经历"] },
+        { title: "大四上 — 申请冲刺期", items: ["9月：完成Research Proposal初稿", "10月：确认推荐人（2-3位），提供推荐素材", "11月：提交港校申请（港大/港科大 deadline）", "12月：NUS/NTU申请提交", "所有学术材料通过BoleChain上链认证", "准备面试（学术presentation + Q&A）"] },
+        { title: "大四下 — 决策期", items: ["1-3月：面试季，准备学术报告", "4月：Offer对比，确认导师和方向", "5-6月：签证、住宿、奖学金申请", "完成毕业论文，保持GPA不下滑"] },
+      ];
+    }
+    return [
+      { title: "G9（高一）— 基础夯实期", items: [`${credRef}建议确保核心科目成绩优异`, "GPA目标：保持3.8+ / A等级以上", "语言准备：开始IELTS基础训练，目标词汇量6000+", "竞赛规划：报名AMC 10/BPA商赛/FBLA", "课外活动：加入学生会/辩论社，积累领导力", "暑假：参加港大/NUS线上学术夏校"] },
+      { title: "G10（高二）— 能力提升期", items: ["增加高阶课程（AP/IB HL/A2）", "首次IELTS模考目标6.5+；SAT开始备考", "竞赛冲刺：AMC 12 + AIME / 学科奥赛", "启动研究项目或创业项目", "累计100+小时社区服务", "暑假：实习或research attachment", ...(credentials.some(c => c.doc_type === "competition") ? ["你的竞赛证书是很好的加分项，建议在此基础上冲刺更高级别"] : [])] },
+      { title: "G11（高三上）— 申请准备期", items: ["标化成绩：IELTS 7.0+ / TOEFL 100+ / SAT 1500+", "9月：个人陈述初稿", "10月：确认推荐人并提供素材", "所有成绩单、获奖证书通过BoleChain上链认证", "11月：港大Early Admission提交", "12月-1月：NUS/NTU申请提交", "每周1-2次模拟面试训练"] },
+      { title: "G12（高三下）— 冲刺决策期", items: ["1-3月：跟进申请状态，补充材料", "2-3月：CUHK/HKUST面试季", "4月：确认firm choice", "5月：办理学生签证、申请宿舍", "6-7月：参加orientation", "导出完整BoleChain可验证学术档案"] },
+    ];
+  };
+
+  const getScoreLabel = () => {
+    switch (curriculum) {
+      case "DSE": return "等级（1-5**）";
+      case "A-Level": return "等级（A*-E）";
+      case "IB": return "分数（1-7）";
+      case "AP": return "分数（1-5）";
+      default: return "分数";
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto">
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 mb-1 flex items-center gap-2">
-            <Brain className="w-6 h-6 text-blue-600" />
-            AI 升学规划引擎
+            <Brain className="w-6 h-6 text-blue-600" /> AI 升学规划引擎
           </h1>
-          <p className="text-slate-500 text-sm">
-            填写您的学术背景，AI 为您生成个性化三年升学路径
-          </p>
+          <p className="text-slate-500 text-sm">填写学术背景，AI为您生成个性化升学路径</p>
         </div>
-        <div className="text-right hidden sm:block">
-          <p className="text-xs text-slate-400">您的 DID</p>
-          <code className="text-xs bg-slate-100 px-2 py-1 rounded font-mono">{mockDid}</code>
-        </div>
+        {user?.did && <code className="text-xs bg-slate-100 px-2 py-1 rounded font-mono hidden sm:block">{user.did.slice(0, 20)}...</code>}
       </div>
 
-      {/* Form */}
-      {!showResult && (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="text-lg">填写学术背景</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Grade */}
-              <div className="space-y-2">
-                <Label>当前年级</Label>
-                <select
-                  value={grade}
-                  onChange={(e) => setGrade(e.target.value)}
-                  className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
-                  required
-                >
-                  <option value="">选择年级...</option>
-                  <option value="G9">G9（高一）</option>
-                  <option value="G10">G10（高二）</option>
-                  <option value="G11">G11（高三）</option>
-                </select>
-              </div>
-
-              {/* Subjects */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>各科成绩</Label>
-                  <Button type="button" variant="outline" size="sm" onClick={addSubject} className="gap-1">
-                    <Plus className="w-3 h-3" /> 添加科目
-                  </Button>
-                </div>
-                <div className="space-y-2">
-                  {subjects.map((item, index) => (
-                    <div key={index} className="flex gap-2 items-center">
-                      <Input
-                        placeholder="科目名称"
-                        value={item.subject}
-                        onChange={(e) => updateSubject(index, "subject", e.target.value)}
-                        className="flex-1"
-                      />
-                      <Input
-                        placeholder="分数"
-                        type="number"
-                        value={item.score}
-                        onChange={(e) => updateSubject(index, "score", e.target.value)}
-                        className="w-24"
-                      />
-                      {subjects.length > 1 && (
-                        <Button type="button" variant="ghost" size="sm" onClick={() => removeSubject(index)}>
-                          <Trash2 className="w-4 h-4 text-red-500" />
-                        </Button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Target Schools */}
-              <div className="space-y-2">
-                <Label>目标院校（可多选）</Label>
-                <div className="flex flex-wrap gap-2">
-                  {TARGET_SCHOOLS.map((school) => (
-                    <button
-                      key={school}
-                      type="button"
-                      onClick={() => toggleSchool(school)}
-                      className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${
-                        selectedSchools.includes(school)
-                          ? "bg-blue-600 text-white border-blue-600"
-                          : "bg-white text-slate-600 border-slate-200 hover:border-blue-300"
-                      }`}
-                    >
-                      {school}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <Button type="submit" disabled={loading || !grade} className="w-full bg-blue-600 hover:bg-blue-700 gap-2">
-                <Sparkles className="w-4 h-4" />
-                {loading ? "AI 分析中..." : "生成三年升学规划"}
-              </Button>
-            </form>
+      {/* Linked credentials */}
+      {credentials.length > 0 && (
+        <Card className="mb-4 border-green-200 bg-green-50/50">
+          <CardContent className="p-4">
+            <p className="text-sm font-medium text-green-800 flex items-center gap-1 mb-2"><Package className="w-4 h-4" /> 你已上链的材料（{credentials.length}份）</p>
+            <div className="flex flex-wrap gap-2">
+              {credentials.map(c => <Badge key={c.id} className={docTypeConfig[c.doc_type]?.color || "bg-slate-100 text-slate-800"} variant="secondary">{c.file_name}</Badge>)}
+            </div>
           </CardContent>
         </Card>
       )}
 
-      {loading && (
-        <div className="text-center py-8">
-          <p className="text-slate-500 animate-pulse">正在分析您的学术背景，匹配目标院校要求...</p>
-        </div>
+      {!showResult && (
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Block 1: Core Grades */}
+          <Card>
+            <CardHeader><CardTitle className="text-base">核心成绩（必填）</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-4 text-sm text-slate-500">
+                <span>学历阶段：<Badge variant="outline">{isGrad ? (degreeLevel === "phd" ? "博士" : "研究生") : "本科"}</Badge></span>
+                {!isGrad && curriculum && <span>课程体系：<Badge variant="outline">{curriculum}</Badge></span>}
+              </div>
+
+              {/* Gaokao specific */}
+              {curriculum === "gaokao" && !isGrad && (
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                  {(["chinese", "math", "english", "comprehensive", "total"] as const).map(k => (
+                    <div key={k}>
+                      <Label className="text-xs">{({ chinese: "语文", math: "数学", english: "英语", comprehensive: "综合", total: "总分" })[k]}</Label>
+                      <Input type="number" value={gaokaoScores[k]} onChange={e => setGaokaoScores({ ...gaokaoScores, [k]: e.target.value })} placeholder="分数" className="mt-1" />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Other curricula */}
+              {curriculum !== "gaokao" && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label>科目成绩</Label>
+                    <Button type="button" variant="outline" size="sm" onClick={addSubject} className="gap-1"><Plus className="w-3 h-3" /> 添加</Button>
+                  </div>
+                  {subjects.map((item, i) => (
+                    <div key={i} className="flex gap-2 items-center">
+                      <Input placeholder="科目" value={item.subject} onChange={e => { const u = [...subjects]; u[i].subject = e.target.value; setSubjects(u); }} className="flex-1" />
+                      <Input placeholder={getScoreLabel()} value={item.score} onChange={e => { const u = [...subjects]; u[i].score = e.target.value; setSubjects(u); }} className="w-28" />
+                      {subjects.length > 1 && <Button type="button" variant="ghost" size="sm" onClick={() => removeSubject(i)}><Trash2 className="w-4 h-4 text-red-500" /></Button>}
+                    </div>
+                  ))}
+                  {curriculum === "IB" && (
+                    <div className="flex gap-2">
+                      <Input placeholder="EE 分数" className="w-32" />
+                      <Input placeholder="TOK 分数" className="w-32" />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Language scores */}
+              <div className="space-y-2 pt-2 border-t">
+                <Label>{curriculum === "gaokao" ? "高考英语分数（必填）" : curriculum === "DSE" ? "DSE English 等级（必填）" : "IELTS 分数（必填）"}</Label>
+                <Input placeholder={curriculum === "gaokao" ? "如：135" : curriculum === "DSE" ? "如：5*" : "如：7.0"} value={languageScore} onChange={e => setLanguageScore(e.target.value)} />
+                <Label className="text-xs text-slate-500">{curriculum === "gaokao" || curriculum === "DSE" ? "IELTS/TOEFL（选填）" : "TOEFL（选填）"}</Label>
+                <Input placeholder="选填" value={languageExtra} onChange={e => setLanguageExtra(e.target.value)} />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Block 2: Optional materials */}
+          <Card>
+            <CardHeader><CardTitle className="text-base">附加材料（选填，让你的申请更有竞争力）</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex flex-wrap gap-2">
+                {!showCompetition && <Button type="button" variant="outline" size="sm" onClick={() => setShowCompetition(true)} className="gap-1"><Plus className="w-3 h-3" />竞赛证书</Button>}
+                {!showInternship && <Button type="button" variant="outline" size="sm" onClick={() => setShowInternship(true)} className="gap-1"><Plus className="w-3 h-3" />实习证明</Button>}
+                {!showRecommendation && <Button type="button" variant="outline" size="sm" onClick={() => setShowRecommendation(true)} className="gap-1"><Plus className="w-3 h-3" />推荐信</Button>}
+                {!showPS && <Button type="button" variant="outline" size="sm" onClick={() => setShowPS(true)} className="gap-1"><Plus className="w-3 h-3" />个人陈述</Button>}
+              </div>
+
+              {showCompetition && (
+                <div className="border rounded-lg p-3 space-y-2">
+                  <Label className="text-sm font-medium">竞赛证书</Label>
+                  {competitions.map((c, i) => (
+                    <div key={i} className="flex gap-2">
+                      <Input placeholder="竞赛名称" value={c.name} onChange={e => { const u = [...competitions]; u[i].name = e.target.value; setCompetitions(u); }} />
+                      <Input placeholder="获奖等级" value={c.level} onChange={e => { const u = [...competitions]; u[i].level = e.target.value; setCompetitions(u); }} className="w-28" />
+                      <Input placeholder="年份" value={c.year} onChange={e => { const u = [...competitions]; u[i].year = e.target.value; setCompetitions(u); }} className="w-20" />
+                    </div>
+                  ))}
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setCompetitions([...competitions, { name: "", level: "", year: "" }])}>+ 添加更多</Button>
+                </div>
+              )}
+
+              {showInternship && (
+                <div className="border rounded-lg p-3 space-y-2">
+                  <Label className="text-sm font-medium">实习证明</Label>
+                  {internships.map((c, i) => (
+                    <div key={i} className="flex gap-2">
+                      <Input placeholder="公司名称" value={c.company} onChange={e => { const u = [...internships]; u[i].company = e.target.value; setInternships(u); }} />
+                      <Input placeholder="岗位" value={c.role} onChange={e => { const u = [...internships]; u[i].role = e.target.value; setInternships(u); }} className="w-28" />
+                      <Input placeholder="时长" value={c.duration} onChange={e => { const u = [...internships]; u[i].duration = e.target.value; setInternships(u); }} className="w-24" />
+                    </div>
+                  ))}
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setInternships([...internships, { company: "", role: "", duration: "" }])}>+ 添加更多</Button>
+                </div>
+              )}
+
+              {showRecommendation && (
+                <div className="border rounded-lg p-3 space-y-2">
+                  <Label className="text-sm font-medium">推荐信</Label>
+                  {recommendations.map((c, i) => (
+                    <div key={i} className="flex gap-2">
+                      <Input placeholder="推荐人姓名" value={c.name} onChange={e => { const u = [...recommendations]; u[i].name = e.target.value; setRecommendations(u); }} />
+                      <Input placeholder="身份" value={c.identity} onChange={e => { const u = [...recommendations]; u[i].identity = e.target.value; setRecommendations(u); }} className="w-28" />
+                      <Input placeholder="邮箱" value={c.email} onChange={e => { const u = [...recommendations]; u[i].email = e.target.value; setRecommendations(u); }} />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {showPS && (
+                <div className="border rounded-lg p-3 space-y-2">
+                  <Label className="text-sm font-medium">个人陈述</Label>
+                  <Input placeholder="标题" value={psTitle} onChange={e => setPsTitle(e.target.value)} />
+                  <Input placeholder="核心主题关键词（逗号分隔）" value={psKeywords} onChange={e => setPsKeywords(e.target.value)} />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 gap-2">
+            <Sparkles className="w-4 h-4" /> {loading ? "AI 分析中..." : "生成升学规划"}
+          </Button>
+        </form>
       )}
 
-      {/* Result: Three Year Plan */}
+      {/* Result */}
       {showResult && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-blue-600" />
-              您的个性化三年升学路径
-            </h2>
-            <Button variant="outline" size="sm" onClick={() => setShowResult(false)}>
-              重新规划
-            </Button>
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold flex items-center gap-2"><Sparkles className="w-5 h-5 text-blue-600" /> 个性化升学路径</h2>
+            <Button variant="outline" size="sm" onClick={() => setShowResult(false)}>重新规划</Button>
           </div>
-
-          {selectedSchools.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-4">
-              <span className="text-sm text-slate-500">目标院校：</span>
-              {selectedSchools.map((s) => (
-                <Badge key={s} variant="secondary" className="text-xs">{s}</Badge>
-              ))}
-            </div>
-          )}
-
-          {Object.entries(mockThreeYearPlan).map(([key, section]) => (
-            <Card key={key} className="border-l-4 border-l-blue-500">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">{section.title}</CardTitle>
-              </CardHeader>
+          {generatePlan().map((section, i) => (
+            <Card key={i} className="border-l-4 border-l-blue-500">
+              <CardHeader className="pb-2"><CardTitle className="text-base">{section.title}</CardTitle></CardHeader>
               <CardContent>
                 <ul className="space-y-2">
-                  {section.items.map((item, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-2 shrink-0" />
-                      {item}
+                  {section.items.map((item, j) => (
+                    <li key={j} className="flex items-start gap-2 text-sm text-slate-700">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-2 shrink-0" />{item}
                     </li>
                   ))}
                 </ul>

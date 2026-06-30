@@ -1,183 +1,135 @@
-export interface School {
-  id: string;
-  name: string;
-  region: string;
-  requirements: {
-    dse: {
-      minimum_score: string;
-      core_subjects: string[];
-      elective_preference?: string[];
-      note?: string;
-    };
-    alevel: {
-      minimum: string;
-      preferred_subjects: string[];
-    };
-    interview: {
-      format: string;
-      language: string;
-      duration: string;
-      focus: string[];
-    };
-    admission_preference: string[];
-  };
-}
-
-export interface Credential {
-  id: string;
-  studentId: string;
-  docType: string;
-  docHash: string;
-  issuerDid: string;
-  anchoredTxPlaceholder: string;
-  status: "pending" | "verified" | "rejected";
-  uploadedAt: string;
-}
-
-export interface Application {
-  id: string;
-  studentId: string;
-  targetSchoolId: string;
-  status: "draft" | "submitted" | "reviewing" | "accepted" | "rejected";
-  createdAt: string;
-}
-
 // ============================================================
-// Hard-coded schools data
+// Programs Data (hardcoded constant)
 // ============================================================
-export const schools: School[] = [
+export interface ProgramInfo {
+  id: string;
+  school: string;
+  program: string;
+  coreCourses: string[];
+  careers: string[];
+  salaryRange: string;
+  requirements: Record<string, string>;
+}
+
+export const programs: ProgramInfo[] = [
   {
-    id: "1719000000001",
-    name: "香港大学 (HKU)",
-    region: "香港",
+    id: "hku-finance",
+    school: "香港大学",
+    program: "金融学",
+    coreCourses: ["投资学", "公司金融", "衍生品定价", "金融计量", "风险管理"],
+    careers: ["投行分析师", "PE/VC投资经理", "管理咨询", "资产管理", "金融科技"],
+    salaryRange: "HK$25,000-80,000/月",
     requirements: {
-      dse: {
-        minimum_score: "33/35 (Best 5)",
-        core_subjects: ["中文 4+", "英文 5+", "数学 4+", "通识 4+"],
-        elective_preference: ["物理", "化学", "经济"],
-      },
-      alevel: {
-        minimum: "AAA-A*A*A",
-        preferred_subjects: ["Mathematics", "Further Maths", "Sciences"],
-      },
-      interview: {
-        format: "小组面试 + 个人面试",
-        language: "英文为主",
-        duration: "20-30分钟",
-        focus: ["批判性思维", "沟通能力", "学科热情"],
-      },
-      admission_preference: ["学术成绩优异", "课外活动丰富", "领导力经验", "社会服务"],
+      dse: "5科5**",
+      alevel: "3A* + IELTS 7.0",
+      ib: "42+ (HL数学7)",
+      ap: "5门5分 + SAT 1550+",
+      gaokao: "全省前0.1% + 英语135+",
     },
   },
   {
-    id: "1719000000002",
-    name: "香港中文大学 (CUHK)",
-    region: "香港",
+    id: "nus-cs",
+    school: "新加坡国立大学",
+    program: "计算机科学",
+    coreCourses: ["算法与数据结构", "人工智能", "系统架构", "计算机网络", "软件工程"],
+    careers: ["科技公司工程师", "量化交易开发", "AI研究员", "产品经理", "技术创业"],
+    salaryRange: "SGD 5,000-15,000/月",
     requirements: {
-      dse: {
-        minimum_score: "30/35 (Best 5)",
-        core_subjects: ["中文 4+", "英文 4+", "数学 4+", "通识 3+"],
-        elective_preference: ["生物", "化学", "历史"],
-      },
-      alevel: {
-        minimum: "AAB-AAA",
-        preferred_subjects: ["Sciences", "Humanities"],
-      },
-      interview: {
-        format: "个人面试",
-        language: "粤语/普通话/英文",
-        duration: "15-20分钟",
-        focus: ["学术兴趣", "个人发展规划", "社会关怀"],
-      },
-      admission_preference: ["学术潜力", "全人发展", "书院文化契合"],
+      alevel: "4A* + IELTS 7.5",
+      ib: "43+ (HL数学7 + HL物理7)",
+      ap: "5门5分 + SAT 1500+",
+      gaokao: "全省前0.05% + 数学145+",
     },
   },
   {
-    id: "1719000000003",
-    name: "新加坡国立大学 (NUS)",
-    region: "新加坡",
+    id: "hkust-ee",
+    school: "香港科技大学",
+    program: "电子工程",
+    coreCourses: ["电路设计", "信号处理", "嵌入式系统", "通信原理", "VLSI设计"],
+    careers: ["芯片设计工程师", "通信工程师", "硬件架构师", "物联网开发", "自动驾驶"],
+    salaryRange: "HK$22,000-65,000/月",
     requirements: {
-      dse: {
-        minimum_score: "34/35 (Best 5)",
-        core_subjects: ["英文 5*+", "数学 5*+"],
-        note: "DSE 申请者需额外提供 SAT/AP 成绩",
-      },
-      alevel: {
-        minimum: "AAA-A*A*A*",
-        preferred_subjects: ["Mathematics", "Sciences", "Economics"],
-      },
-      interview: {
-        format: "线上面试 + 笔试（部分专业）",
-        language: "英文",
-        duration: "30分钟",
-        focus: ["分析能力", "跨文化适应力", "职业规划"],
-      },
-      admission_preference: ["顶尖学术成绩", "国际竞赛获奖", "研究经历", "创业/创新项目"],
+      dse: "物理5* + 化学5* + 数学5**",
+      alevel: "3A* (含物理数学) + IELTS 6.5",
+      ib: "38+ (HL物理+数学)",
+      ap: "物理C+微积分BC 5分",
+    },
+  },
+  {
+    id: "ntu-qf",
+    school: "南洋理工大学",
+    program: "量化金融",
+    coreCourses: ["随机过程", "C++金融编程", "风险管理", "金融工程", "机器学习在金融中的应用"],
+    careers: ["对冲基金量化分析师", "高频交易开发", "风控建模", "金融衍生品交易", "Fintech"],
+    salaryRange: "SGD 6,000-20,000/月",
+    requirements: {
+      alevel: "4A* (含数学+进阶数学) + IELTS 7.5",
+      ib: "44+ (HL数学7)",
+      ap: "5门5分 (含微积分BC+统计)",
+      gaokao: "全省前0.1% + 数学148+",
     },
   },
 ];
 
 // ============================================================
-// localStorage-based credentials store
+// Credential Interface
 // ============================================================
-const CREDENTIALS_KEY = "bolechain_credentials";
-const APPLICATIONS_KEY = "bolechain_applications";
-
-export function getCredentials(): Credential[] {
-  if (typeof window === "undefined") return [];
-  const raw = localStorage.getItem(CREDENTIALS_KEY);
-  return raw ? JSON.parse(raw) : [];
+export interface CredentialRecord {
+  id: string;
+  file_name: string;
+  doc_type: "transcript" | "competition" | "internship" | "recommendation" | "ps" | "language" | "other";
+  doc_hash: string;
+  issuer_did: string;
+  uploaded_at: string;
+  status: string;
+  student_email: string;
+  ocr_data?: {
+    gpa: string;
+    courses: { name: string; grade: string }[];
+  };
 }
 
-export function addCredential(cred: Credential): void {
+const CREDENTIALS_KEY = "bolechain_credentials";
+
+export function getCredentials(): CredentialRecord[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(CREDENTIALS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveCredentials(creds: CredentialRecord[]) {
+  localStorage.setItem(CREDENTIALS_KEY, JSON.stringify(creds));
+}
+
+export function addCredential(cred: CredentialRecord): void {
   const list = getCredentials();
   list.push(cred);
-  localStorage.setItem(CREDENTIALS_KEY, JSON.stringify(list));
-}
-
-export function getApplications(): Application[] {
-  if (typeof window === "undefined") return [];
-  const raw = localStorage.getItem(APPLICATIONS_KEY);
-  return raw ? JSON.parse(raw) : [];
-}
-
-export function addApplication(app: Application): void {
-  const list = getApplications();
-  list.push(app);
-  localStorage.setItem(APPLICATIONS_KEY, JSON.stringify(list));
+  saveCredentials(list);
 }
 
 // ============================================================
-// Mock AI planning output
+// Doc type labels and colors
 // ============================================================
-export const mockAIPlanningResult = {
-  summary: "基于您的学术背景和目标，我们为您推荐以下升学路径：",
-  recommendations: [
-    {
-      school: "香港大学 (HKU)",
-      program: "工商管理学士",
-      matchScore: 85,
-      reason: "您的 DSE 预估成绩 (Best 5: 32) 接近 HKU 商学院要求，且您有丰富的商业竞赛经历。建议加强英文口语准备面试。",
-    },
-    {
-      school: "香港中文大学 (CUHK)",
-      program: "环球商业学",
-      matchScore: 78,
-      reason: "CUHK 重视全人发展，您的社区服务经历是加分项。书院制度适合希望获得 mentorship 的学生。",
-    },
-    {
-      school: "新加坡国立大学 (NUS)",
-      program: "Business Analytics",
-      matchScore: 72,
-      reason: "NUS 对数学能力要求高，建议补充 SAT Math 成绩。您的编程背景在 BA 专业申请中具有竞争力。",
-    },
-  ],
-  timeline: [
-    { month: "2026年7月", task: "完成个人陈述初稿" },
-    { month: "2026年8月", task: "准备推荐信（2封）" },
-    { month: "2026年9月", task: "提交 HKU Early Admission" },
-    { month: "2026年10月", task: "NUS 申请开放，提交材料" },
-    { month: "2026年11月", task: "CUHK 面试准备" },
-    { month: "2026年12月", task: "模拟面试训练" },
-  ],
+export const docTypeConfig: Record<string, { label: string; color: string }> = {
+  transcript: { label: "成绩单", color: "bg-blue-100 text-blue-800" },
+  competition: { label: "竞赛证书", color: "bg-amber-100 text-amber-800" },
+  internship: { label: "实习证明", color: "bg-green-100 text-green-800" },
+  recommendation: { label: "推荐信", color: "bg-purple-100 text-purple-800" },
+  ps: { label: "个人陈述", color: "bg-pink-100 text-pink-800" },
+  language: { label: "语言成绩", color: "bg-orange-100 text-orange-800" },
+  other: { label: "其他", color: "bg-slate-100 text-slate-800" },
 };
+
+// ============================================================
+// SHA-256 hash utility
+// ============================================================
+export async function computeSHA256(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer();
+  const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
